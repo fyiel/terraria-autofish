@@ -11,8 +11,6 @@ injects two patches into `Terraria.exe` using [dnlib](https://github.com/0xd4d/d
 - **auto-catch** fish bites and it instantly reels in for you
 - **auto-recast** holding a fishing rod with no bobber out makes it recast automatically, swap to a different item to stop it
 
-switch to another item to stop
-
 ## you need
 
 - [net 8+](https://dotnet.microsoft.com/download)
