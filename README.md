@@ -2,6 +2,8 @@
 
 patch terraria to fish for you automatically cast once and walk away
 
+### updated to version 1.4.5.5
+
 works on windows linux and mac
 
 ## what it does
