@@ -66,31 +66,37 @@ Console.WriteLine("Loading Terraria.exe...");
 var data = File.ReadAllBytes(terrariaExe);
 var mod = ModuleDefMD.Load(data);
 
-// resolve the types, fields, and methods we need
+// resolve types, fields, and methods using FirstOrDefault so we get clear errors instead of crashes
 var allTypes = mod.Types.ToList();
 allTypes.AddRange(allTypes.SelectMany(t => t.NestedTypes).ToList());
 
-var projType = allTypes.First(t => t.Name == "Projectile");
-var playerType = allTypes.First(t => t.Name == "Player");
-var mainType = allTypes.First(t => t.Name == "Main");
-var itemType = allTypes.First(t => t.Name == "Item");
-var entityType = allTypes.First(t => t.Name == "Entity");
+T Resolve<T>(T? value, string name) where T : class
+{
+    if (value == null) { Console.WriteLine($"ERROR: Could not resolve '{name}' - game version may be unsupported"); Environment.Exit(1); }
+    return value;
+}
 
-var aiField = projType.Fields.First(f => f.Name == "ai" && f.FieldType.TypeName == "Single[]");
-var ownerField = projType.Fields.First(f => f.Name == "owner");
-var activeField = projType.Fields.First(f => f.Name == "active");
-var bobberFieldProj = projType.Fields.First(f => f.Name == "bobber");
-var mainPlayerField = mainType.Fields.First(f => f.Name == "player" && f.IsStatic);
-var myPlayerField = mainType.Fields.First(f => f.Name == "myPlayer" && f.IsStatic);
-var mainProjectileField = mainType.Fields.First(f => f.Name == "projectile" && f.IsStatic);
-var controlUseItemField = playerType.Fields.First(f => f.Name == "controlUseItem");
-var releaseUseItemField = playerType.Fields.First(f => f.Name == "releaseUseItem");
-var whoAmIField = entityType.Fields.First(f => f.Name == "whoAmI");
-var fishingPoleField = itemType.Fields.First(f => f.Name == "fishingPole");
+var projType = Resolve(allTypes.FirstOrDefault(t => t.Name == "Projectile"), "type Projectile");
+var playerType = Resolve(allTypes.FirstOrDefault(t => t.Name == "Player"), "type Player");
+var mainType = Resolve(allTypes.FirstOrDefault(t => t.Name == "Main"), "type Main");
+var itemType = Resolve(allTypes.FirstOrDefault(t => t.Name == "Item"), "type Item");
+var entityType = Resolve(allTypes.FirstOrDefault(t => t.Name == "Entity"), "type Entity");
 
-var consumeBait = playerType.Methods.First(m => m.Name == "ItemCheck_CheckFishingBobber_ConsumeBait");
-var pullBobber = playerType.Methods.First(m => m.Name == "ItemCheck_CheckFishingBobber_PullBobber");
-var killMethod = projType.Methods.First(m => m.Name == "Kill" && m.Parameters.Count == 1);
+var aiField = Resolve(projType.Fields.FirstOrDefault(f => f.Name == "ai" && f.FieldType.TypeName == "Single[]"), "Projectile.ai");
+var ownerField = Resolve(projType.Fields.FirstOrDefault(f => f.Name == "owner"), "Projectile.owner");
+var activeField = Resolve(projType.Fields.FirstOrDefault(f => f.Name == "active"), "Projectile.active");
+var bobberFieldProj = Resolve(projType.Fields.FirstOrDefault(f => f.Name == "bobber"), "Projectile.bobber");
+var mainPlayerField = Resolve(mainType.Fields.FirstOrDefault(f => f.Name == "player" && f.IsStatic), "Main.player");
+var myPlayerField = Resolve(mainType.Fields.FirstOrDefault(f => f.Name == "myPlayer" && f.IsStatic), "Main.myPlayer");
+var mainProjectileField = Resolve(mainType.Fields.FirstOrDefault(f => f.Name == "projectile" && f.IsStatic), "Main.projectile");
+var controlUseItemField = Resolve(playerType.Fields.FirstOrDefault(f => f.Name == "controlUseItem"), "Player.controlUseItem");
+var releaseUseItemField = Resolve(playerType.Fields.FirstOrDefault(f => f.Name == "releaseUseItem"), "Player.releaseUseItem");
+var whoAmIField = Resolve(entityType.Fields.FirstOrDefault(f => f.Name == "whoAmI"), "Entity.whoAmI");
+var fishingPoleField = Resolve(itemType.Fields.FirstOrDefault(f => f.Name == "fishingPole"), "Item.fishingPole");
+
+var consumeBait = Resolve(playerType.Methods.FirstOrDefault(m => m.Name == "ItemCheck_CheckFishingBobber_ConsumeBait"), "Player.ConsumeBait");
+var pullBobber = Resolve(playerType.Methods.FirstOrDefault(m => m.Name == "ItemCheck_CheckFishingBobber_PullBobber"), "Player.PullBobber");
+var killMethod = Resolve(projType.Methods.FirstOrDefault(m => m.Name == "Kill" && m.Parameters.Count == 1), "Projectile.Kill");
 
 // 1st patch (auto-catch)
 // In Projectile.AI_061_FishingBobber, find the "nibble" section where the game
