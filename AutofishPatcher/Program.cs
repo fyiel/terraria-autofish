@@ -4,6 +4,14 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Collections.Generic;
+using System.Security.Cryptography;
+
+string HashFile(string path)
+{
+    using var stream = File.OpenRead(path);
+    var hash = SHA256.HashData(stream);
+    return Convert.ToHexString(hash);
+}
 
 // set TERRARIA_DIR to change the target directory, otherwise it defaults to the common Steam install paths
 string terrariaDir = Environment.GetEnvironmentVariable("TERRARIA_DIR")
@@ -18,11 +26,35 @@ string terrariaDir = Environment.GetEnvironmentVariable("TERRARIA_DIR")
 string exeName = "Terraria.exe";
 string terrariaExe = Path.Combine(terrariaDir, exeName);
 string backupExe = terrariaExe + ".bak";
+string hashFile = terrariaExe + ".patched.sha256";
 
 if (File.Exists(backupExe))
 {
-    File.Copy(backupExe, terrariaExe, true);
-    Console.WriteLine("Restored original from backup.");
+    if (!File.Exists(hashFile))
+    {
+        // no hash file (upgrading from older patcher), stale bak, start fresh
+        File.Delete(backupExe);
+        File.Copy(terrariaExe, backupExe);
+        Console.WriteLine("No hash file found, replaced stale backup.");
+    }
+    else
+    {
+        var currentHash = HashFile(terrariaExe);
+        var patchedHash = File.ReadAllText(hashFile).Trim();
+
+        if (currentHash == patchedHash)
+        {
+            // exe is still our patched version, restore original from backup
+            File.Copy(backupExe, terrariaExe, true);
+            Console.WriteLine("Restored original from backup.");
+        }
+        else
+        {
+            // exe changed since we patched it (game update), make a new backup
+            File.Copy(terrariaExe, backupExe, true);
+            Console.WriteLine("Detected game update, backup replaced with new version.");
+        }
+    }
 }
 else
 {
@@ -280,6 +312,9 @@ var writerOptions = new dnlib.DotNet.Writer.ModuleWriterOptions(mod)
 };
 
 mod.Write(terrariaExe, writerOptions);
+
+// save hash of patched exe so we can tell if Steam updates it later
+File.WriteAllText(hashFile, HashFile(terrariaExe));
 
 var origSize = new FileInfo(backupExe).Length;
 var newSize = new FileInfo(terrariaExe).Length;
