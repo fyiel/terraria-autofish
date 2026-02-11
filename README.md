@@ -13,7 +13,7 @@ injects two patches into `Terraria.exe` using [dnlib](https://github.com/0xd4d/d
 
 ## you need
 
-- [net 8+](https://dotnet.microsoft.com/download)
+- [net 10+](https://dotnet.microsoft.com/download)
 - terraria on steam
 
 ## how to use
