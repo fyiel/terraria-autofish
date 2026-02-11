@@ -101,8 +101,8 @@ Console.WriteLine("\n--- Patch 1: Auto-catch when fish bites ---");
 var bobberAI = projType.Methods.First(m => m.Name == "AI_061_FishingBobber");
 var instrs = bobberAI.Body.Instructions;
 
-// this is to find the this.ai[1] >= 0f ? skip : <nibble handler>
-// it appears right after a `ret` from the FishingCheck call block
+// find the nibble check: this.ai[1] >= 0f. this pattern is unique in the method,
+// it's the only place ai[1] is compared to 0f with bge.un
 int nibbleStart = -1;
 for (int i = 0; i < instrs.Count - 6; i++)
 {
@@ -113,11 +113,8 @@ for (int i = 0; i < instrs.Count - 6; i++)
         && instrs[i + 4].OpCode == OpCodes.Ldc_R4 && (float)instrs[i + 4].Operand == 0f
         && instrs[i + 5].OpCode == OpCodes.Bge_Un)
     {
-        if (i > 0 && instrs[i - 1].OpCode == OpCodes.Ret)
-        {
-            nibbleStart = i;
-            break;
-        }
+        nibbleStart = i;
+        break;
     }
 }
 
@@ -186,17 +183,37 @@ Console.WriteLine("\n--- Patch 2: Auto-recast when no bobbers ---");
 var itemCheck = playerType.Methods.First(m => m.Name == "ItemCheck" && m.Body.Instructions.Count > 2000);
 var icInstrs = itemCheck.Body.Instructions;
 
-// this is to find the "controlUseItem" gate which is if-check that guards all item-use logic
+// find the "controlUseItem" gate, the if-check that guards all item-use logic.
+// primary: preceded by stfld releaseUseItem (works across versions).
+// fallback: followed by ldfld releaseUseItem / brfalse (the double-gate pattern).
 int gateIdx = -1;
-for (int i = 0; i < icInstrs.Count - 3; i++)
+for (int i = 1; i < icInstrs.Count - 2; i++)
 {
     if (icInstrs[i].OpCode == OpCodes.Ldarg_0
         && icInstrs[i + 1].OpCode == OpCodes.Ldfld && icInstrs[i + 1].Operand == controlUseItemField
         && icInstrs[i + 2].OpCode == OpCodes.Brfalse
-        && icInstrs[i + 1].Offset >= 0x02F0 && icInstrs[i + 1].Offset <= 0x0320)
+        && icInstrs[i - 1].OpCode == OpCodes.Stfld && icInstrs[i - 1].Operand == releaseUseItemField)
     {
         gateIdx = i;
         break;
+    }
+}
+if (gateIdx < 0)
+{
+    // fallback: find controlUseItem / brfalse followed by releaseUseItem / brfalse
+    for (int i = 0; i < icInstrs.Count - 6; i++)
+    {
+        if (icInstrs[i].OpCode == OpCodes.Ldarg_0
+            && icInstrs[i + 1].OpCode == OpCodes.Ldfld && icInstrs[i + 1].Operand == controlUseItemField
+            && icInstrs[i + 2].OpCode == OpCodes.Brfalse
+            && icInstrs[i + 3].OpCode == OpCodes.Ldarg_0
+            && icInstrs[i + 4].OpCode == OpCodes.Ldfld && icInstrs[i + 4].Operand == releaseUseItemField
+            && icInstrs[i + 5].OpCode == OpCodes.Brfalse)
+        {
+            gateIdx = i;
+            Console.WriteLine("  (used fallback pattern for gate detection)");
+            break;
+        }
     }
 }
 
